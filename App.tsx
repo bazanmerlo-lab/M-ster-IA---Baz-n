@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, ContentProject, ContentStatus, ContentType, ProjectLog } from './types';
 import { MOCK_USERS, STATUS_COLORS, GLOSSARY } from './constants';
 import { generateInitialContextQuestions, generateFinalContent } from './geminiService';
+import { loadProjects, saveProjects } from './indexedDb';
 
 const LoadingOverlay: React.FC<{ message: string }> = ({ message }) => (
   <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
@@ -49,6 +50,25 @@ const App: React.FC = () => {
     toneAndStyle: '',
     restrictions: ''
   });
+
+  // Carga inicial de proyectos desde IndexedDB
+  useEffect(() => {
+    loadProjects().then(savedProjects => {
+      if (savedProjects && savedProjects.length > 0) {
+        setProjects(savedProjects);
+      }
+    });
+  }, []);
+
+  // Guardado automático en IndexedDB con debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (projects.length > 0) {
+        saveProjects(projects);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [projects]);
 
   useEffect(() => {
     if (currentUser.role === UserRole.EDITOR) {
@@ -452,7 +472,6 @@ const App: React.FC = () => {
 
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 px-1">Instrucciones</label>
-                    {/* AHORA ES EDITABLE SIEMPRE PARA EL RESPONSABLE QUE ATIENDE EL PEDIDO */}
                     <textarea 
                       className="w-full p-6 border-2 border-slate-100 bg-white rounded-3xl focus:border-indigo-500 outline-none h-40 transition-all font-medium text-slate-700" 
                       placeholder={textCreationMode === 'repo' ? "Describe el copy que quieres para esta imagen..." : "Describe lo que buscas..."} 
